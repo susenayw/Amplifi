@@ -1,0 +1,5 @@
+# Rust build artifacts
+**/target/
+**/target-package/
+src-tauri/target-package/
+amplifi-app/target-package/
