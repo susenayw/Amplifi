@@ -917,6 +917,7 @@ function App() {
           >
             {showSidebar ? "Hide sidebar" : "Show sidebar"}
           </button>
+          <span className="local-badge"><span aria-hidden="true" /> LOCAL PROCESSING</span>
         </div>
         <div
           className="preview"
