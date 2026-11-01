@@ -603,6 +603,7 @@ function App() {
     <div
       className={`app ${showSidebar ? "" : "sidebar-collapsed"}`}
       data-theme={theme}
+      onContextMenu={(event) => event.preventDefault()}
     >
       <nav className="app-navbar" aria-label="Application" data-tauri-drag-region>
         <div className="navbar-leading">
