@@ -15,8 +15,10 @@ import {
 import "./App.css";
 
 const modelLabels: Record<string, string> = {
-  "amplifi-standard-4x": "Amplifi Standard",
-  "amplifi-lite-4x": "Amplifi Lite",
+  "amplifi-standard-4x": "Amplify Better",
+  "amplifi-lite-4x": "Amplify",
+  "upscayl-standard-4x": "Amplify Better",
+  "upscayl-lite-4x": "Amplify",
   "high-fidelity-4x": "High Fidelity",
   "digital-art-4x": "Digital Art",
   "remacri-4x": "Remacri (non-commercial)",
