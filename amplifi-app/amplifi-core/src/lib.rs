@@ -1,7 +1,7 @@
 //! Construction of arguments and safe execution for Amplifi's NCNN image engine.
 //! The engine is invoked without a shell so filenames are passed as individual arguments.
 use std::{
-    io::{Read, Write},
+    io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{
@@ -274,8 +274,57 @@ pub fn verify_input_image(path: &Path) -> Result<(), String> {
 }
 
 pub fn image_dimensions(path: &Path) -> Result<(u32, u32), String> {
-    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
-    image_dimensions_from_bytes(&bytes)
+    let mut file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    let mut header = [0u8; 30];
+    let header_len = file.read(&mut header).map_err(|e| e.to_string())?;
+    let header = &header[..header_len];
+    if header.starts_with(b"\x89PNG\r\n\x1a\n")
+        || (header.starts_with(b"RIFF") && header.get(8..12) == Some(b"WEBP"))
+    {
+        return image_dimensions_from_bytes(header);
+    }
+    if !header.starts_with(b"\xff\xd8\xff") {
+        return Err("Unsupported or corrupted image file.".into());
+    }
+
+    file.seek(SeekFrom::Start(2)).map_err(|e| e.to_string())?;
+    loop {
+        let mut byte = [0u8; 1];
+        while file.read_exact(&mut byte).is_ok() && byte[0] != 0xff {}
+        if byte[0] != 0xff {
+            return Err("Malformed JPEG header.".into());
+        }
+        file.read_exact(&mut byte)
+            .map_err(|_| "Malformed JPEG header.")?;
+        while byte[0] == 0xff {
+            file.read_exact(&mut byte)
+                .map_err(|_| "Malformed JPEG header.")?;
+        }
+        let marker = byte[0];
+        if marker == 0xd8 || marker == 0xd9 || (0xd0..=0xd7).contains(&marker) || marker == 0x01 {
+            continue;
+        }
+        let mut length_bytes = [0u8; 2];
+        file.read_exact(&mut length_bytes)
+            .map_err(|_| "Malformed JPEG header.")?;
+        let length = u16::from_be_bytes(length_bytes) as u64;
+        if length < 2 {
+            return Err("Malformed JPEG header.".into());
+        }
+        if matches!(marker, 0xc0..=0xc3 | 0xc5..=0xc7 | 0xc9..=0xcb | 0xcd..=0xcf) {
+            let mut frame = [0u8; 5];
+            file.read_exact(&mut frame)
+                .map_err(|_| "Malformed JPEG header.")?;
+            let height = u16::from_be_bytes([frame[1], frame[2]]) as u32;
+            let width = u16::from_be_bytes([frame[3], frame[4]]) as u32;
+            if width > 0 && height > 0 {
+                return Ok((width, height));
+            }
+            return Err("JPEG has zero dimensions.".into());
+        }
+        file.seek(SeekFrom::Current((length - 2) as i64))
+            .map_err(|_| "Malformed JPEG header.")?;
+    }
 }
 
 pub fn image_dimensions_from_bytes(bytes: &[u8]) -> Result<(u32, u32), String> {

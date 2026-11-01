@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { basename, dirname, join, resourceDir } from "@tauri-apps/api/path";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { basename, dirname, homeDir, join, resourceDir } from "@tauri-apps/api/path";
 import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import appIcon from "../app-icon.svg";
 import {
-  comparisonClipPath,
   outputFilename,
   parseProgressLine,
   targetDimensions,
@@ -51,9 +51,8 @@ type Settings = {
   overwrite?: boolean;
   copyMetadata?: boolean;
   rememberOutputFolder?: boolean;
+  inputDir?: string;
   theme?: "dark" | "light";
-  viewMode?: "slider" | "lens";
-  lensSize?: number;
   outputDir?: string;
   modelsDir?: string;
   stats?: Stats;
@@ -101,6 +100,7 @@ function App() {
   const [outputDir, setOutputDir] = useState(
     savedSettings.rememberOutputFolder ? savedSettings.outputDir || "" : "",
   );
+  const [inputDir, setInputDir] = useState(savedSettings.inputDir || "");
   const [modelsDir, setModelsDir] = useState(savedSettings.modelsDir || "");
   const [models, setModels] = useState<string[]>([]);
   const [model, setModel] = useState(savedSettings.model || "amplifi-standard-4x");
@@ -123,27 +123,29 @@ function App() {
   const [result, setResult] = useState("");
   const [resultVersion, setResultVersion] = useState(0);
   const [lastSaved, setLastSaved] = useState("");
-  const [position, setPosition] = useState(50);
+  const [showOriginal, setShowOriginal] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">(
     savedSettings.theme || "dark",
   );
-  const [viewMode, setViewMode] = useState<"slider" | "lens">(
-    savedSettings.viewMode || "slider",
-  );
-  const [lensSize, setLensSize] = useState(savedSettings.lensSize || 120);
-  const [lensPoint, setLensPoint] = useState<{ x: number; y: number } | null>(
-    null,
-  );
   const [zoom, setZoom] = useState(100);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const [inputDims, setInputDims] = useState<{
     width: number;
     height: number;
   } | null>(null);
   const [outputSize, setOutputSize] = useState("");
+
+  useEffect(() => {
+    setShowOriginal(false);
+    setZoom(100);
+    setPan({ x: 0, y: 0 });
+  }, [input, batch, result]);
   const [recommendation, setRecommendation] = useState<Recommendation | null>(
     null,
   );
   const [showSidebar, setShowSidebar] = useState(true);
+  const [windowMaximized, setWindowMaximized] = useState(false);
   const [stats, setStats] = useState<Stats>(
     savedSettings.stats || { total: 0, batch: 0, double: 0, lastDurationMs: 0 },
   );
@@ -151,6 +153,18 @@ function App() {
   const [message, setMessage] = useState("");
   const [log, setLog] = useState("");
   const [progress, setProgress] = useState<number | null>(null);
+
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+    void appWindow.isMaximized().then(setWindowMaximized).catch(() => {});
+    let unlisten: (() => void) | undefined;
+    void appWindow
+      .onResized(() => {
+        void appWindow.isMaximized().then(setWindowMaximized).catch(() => {});
+      })
+      .then((stop) => { unlisten = stop; });
+    return () => unlisten?.();
+  }, []);
 
   const expectedDims = useMemo(
     () =>
@@ -221,9 +235,8 @@ function App() {
         overwrite,
         copyMetadata,
         rememberOutputFolder,
+        inputDir,
         theme,
-        viewMode,
-        lensSize,
         compression,
         outputDir: rememberOutputFolder ? outputDir : "",
         modelsDir,
@@ -242,9 +255,8 @@ function App() {
     overwrite,
     copyMetadata,
     rememberOutputFolder,
+    inputDir,
     theme,
-    viewMode,
-    lensSize,
     compression,
     outputDir,
     modelsDir,
@@ -320,6 +332,8 @@ function App() {
             if (kind === "image") await invoke("allow_preview", { path });
             setBatch(kind === "folder");
             setInput(path);
+            const selectedInputDir = kind === "folder" ? path : await dirname(path);
+            setInputDir(selectedInputDir);
             setResult("");
             setLastSaved("");
             setInputDims(null);
@@ -327,9 +341,7 @@ function App() {
             setRecommendation(null);
             setMessage("");
             setLog("");
-            if (!rememberOutputFolder || !outputDir) {
-              setOutputDir(kind === "folder" ? path : await dirname(path));
-            }
+            if (!outputDir) setOutputDir(selectedInputDir);
           } catch (error) {
             setMessage(`Could not process dropped item: ${String(error)}`);
           }
@@ -368,9 +380,10 @@ function App() {
       void image
         .arrayBuffer()
         .then((buffer) => invoke<string>("paste_image", buffer))
-        .then((path) => {
+        .then(async (path) => {
           setBatch(false);
           setInput(path);
+          setInputDir(await dirname(path));
           setResult("");
           setLastSaved("");
           setInputDims(null);
@@ -429,8 +442,9 @@ function App() {
     setCopyMetadata(false);
     setRememberOutputFolder(false);
     setTheme("dark");
-    setViewMode("slider");
-    setLensSize(120);
+    setZoom(100);
+    setPan({ x: 0, y: 0 });
+    setShowOriginal(false);
     setOutputDir("");
     try {
       setModelsDir(await join(await resourceDir(), "resources", "models"));
@@ -442,6 +456,7 @@ function App() {
 
   async function chooseImage() {
     const path = await open({
+      defaultPath: inputDir || (await homeDir()),
       multiple: false,
       filters: [
         { name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] },
@@ -450,33 +465,42 @@ function App() {
     if (path) {
       await invoke("allow_preview", { path });
       setInput(path);
+      const selectedInputDir = await dirname(path);
+      setInputDir(selectedInputDir);
       setResult("");
       setLastSaved("");
       setInputDims(null);
       setOutputSize("");
       setRecommendation(null);
       setMessage("");
-      if (!rememberOutputFolder || !outputDir)
-        setOutputDir(await dirname(path));
+      if (!outputDir) setOutputDir(selectedInputDir);
     }
   }
 
   async function chooseInputFolder() {
-    const folder = await open({ directory: true, multiple: false });
+    const folder = await open({
+      defaultPath: inputDir || (await homeDir()),
+      directory: true,
+      multiple: false,
+    });
     if (folder) {
       setInput(folder);
+      setInputDir(folder);
       setResult("");
       setLastSaved("");
       setInputDims(null);
       setOutputSize("");
       setRecommendation(null);
       setMessage("");
-      if (!rememberOutputFolder || !outputDir) setOutputDir(folder);
+      if (!outputDir) setOutputDir(folder);
     }
   }
 
-  async function chooseFolder(setter: (path: string) => void) {
-    const path = await open({ directory: true, multiple: false });
+  async function chooseFolder(
+    setter: (path: string) => void,
+    defaultPath?: string,
+  ) {
+    const path = await open({ defaultPath, directory: true, multiple: false });
     if (path) setter(path);
   }
 
@@ -580,30 +604,68 @@ function App() {
       className={`app ${showSidebar ? "" : "sidebar-collapsed"}`}
       data-theme={theme}
     >
+      <nav className="app-navbar" aria-label="Application" data-tauri-drag-region>
+        <div className="navbar-leading">
+          <button
+            className="navbar-icon sidebar-control"
+            aria-label={showSidebar ? "Hide sidebar" : "Show sidebar"}
+            aria-expanded={showSidebar}
+            title={showSidebar ? "Hide sidebar" : "Show sidebar"}
+            onClick={() => setShowSidebar((prev) => !prev)}
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <rect x="2.5" y="3" width="15" height="14" rx="2" />
+              <path d={showSidebar ? "M7 3.5v13" : "M7 7l3 3-3 3"} />
+            </svg>
+          </button>
+          <div className="navbar-brand" data-tauri-drag-region>
+            <img className="brand-icon" src={appIcon} alt="" />
+            <span className="navbar-title">Amplifi</span>
+          </div>
+        </div>
+        <div className="window-controls">
+          <button className="window-control" aria-label="Minimize window" title="Minimize" onClick={() => void getCurrentWindow().minimize()}>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10" /></svg>
+          </button>
+          <button className="window-control" aria-label={windowMaximized ? "Restore window" : "Maximize window"} title={windowMaximized ? "Restore" : "Maximize"} onClick={() => void getCurrentWindow().toggleMaximize()}>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              {windowMaximized ? <path d="M5 3.5H12.5V11M3.5 5H11V12.5H3.5z" /> : <rect x="3.5" y="3.5" width="9" height="9" rx=".5" />}
+            </svg>
+          </button>
+          <button className="window-control close-control" aria-label="Close window" title="Close" onClick={() => void getCurrentWindow().close()}>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" /></svg>
+          </button>
+        </div>
+      </nav>
+      <div className="workspace">
       {showSidebar && (
         <aside>
           <div className="side-content">
-            <header>
-              <img className="brand-icon" src={appIcon} alt="" />
-              <div>
-                <h1>Amplifi</h1>
-                <p>AI image upscaler</p>
-              </div>
-            </header>
             <section>
               <h2>Image</h2>
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={batch}
-                  onChange={(e) => {
-                    setBatch(e.target.checked);
-                    clearSelection();
-                  }}
-                  disabled={busy}
-                />{" "}
-                Batch folder
-              </label>
+              <div className="image-options">
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={batch}
+                    onChange={(e) => {
+                      setBatch(e.target.checked);
+                      clearSelection();
+                    }}
+                    disabled={busy}
+                  />
+                  Batch folder
+                </label>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={overwrite}
+                    onChange={(e) => setOverwrite(e.target.checked)}
+                    disabled={busy}
+                  />
+                  Replace existing output
+                </label>
+              </div>
               <div className="button-row">
                 <button
                   onClick={batch ? chooseInputFolder : chooseImage}
@@ -717,7 +779,7 @@ function App() {
               <h2>Output</h2>
               <button
                 className="secondary"
-                onClick={() => chooseFolder(setOutputDir)}
+                onClick={() => chooseFolder(setOutputDir, outputDir || undefined)}
                 disabled={busy}
               >
                 Choose folder
@@ -731,15 +793,6 @@ function App() {
                   disabled={busy}
                 />{" "}
                 Remember output folder
-              </label>
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={overwrite}
-                  onChange={(e) => setOverwrite(e.target.checked)}
-                  disabled={busy}
-                />{" "}
-                Replace existing output
               </label>
               <label>
                 Format
@@ -775,7 +828,7 @@ function App() {
                 Custom model folder
                 <button
                   className="secondary"
-                  onClick={() => chooseFolder(setModelsDir)}
+                  onClick={() => chooseFolder(setModelsDir, modelsDir || undefined)}
                   disabled={busy}
                 >
                   Choose model folder
@@ -910,42 +963,47 @@ function App() {
         </aside>
       )}
       <main>
-        <div className="top-bar">
-          <button
-            className="secondary small-btn"
-            onClick={() => setShowSidebar((prev) => !prev)}
-          >
-            {showSidebar ? "Hide sidebar" : "Show sidebar"}
-          </button>
-          <span className="local-badge"><span aria-hidden="true" /> LOCAL PROCESSING</span>
-        </div>
         <div
-          className="preview"
-          onPointerMove={(e) => {
-            if (viewMode === "lens") {
-              const box = e.currentTarget.getBoundingClientRect();
-              setLensPoint({
-                x: e.clientX - box.left,
-                y: e.clientY - box.top,
-              });
-            }
+          className={`preview ${input && !batch ? "is-draggable" : ""}`}
+          onWheel={(e) => {
+            if (!input || batch) return;
+            e.preventDefault();
+            const direction = e.deltaY < 0 ? 1 : -1;
+            setZoom((current) =>
+              Math.min(500, Math.max(25, Math.round(current * (direction > 0 ? 1.1 : 1 / 1.1)))),
+            );
           }}
-          onPointerLeave={() => setLensPoint(null)}
+          onPointerDown={(e) => {
+            if (!input || batch || e.button !== 0) return;
+            dragRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+            e.currentTarget.setPointerCapture(e.pointerId);
+          }}
+          onPointerMove={(e) => {
+            if (!dragRef.current) return;
+            setPan({
+              x: dragRef.current.panX + e.clientX - dragRef.current.x,
+              y: dragRef.current.panY + e.clientY - dragRef.current.y,
+            });
+          }}
+          onPointerUp={() => { dragRef.current = null; }}
+          onPointerCancel={() => { dragRef.current = null; }}
         >
           {input && !batch ? (
             <>
               <img
                 crossOrigin="anonymous"
-                style={{ transform: `scale(${zoom / 100})` }}
+                decoding="async"
+                fetchPriority="low"
+                style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / 100})` }}
                 src={
-                  result
+                  result && !showOriginal
                     ? `${convertFileSrc(result)}?v=${resultVersion}`
                     : convertFileSrc(input)
                 }
-                alt={result ? "Upscaled image" : "Original image"}
+                alt={result && !showOriginal ? "Upscaled image" : "Original image"}
                 onLoad={(e) => {
                   const img = e.currentTarget;
-                  if (result) {
+                  if (result && !showOriginal) {
                     setOutputSize(`${img.naturalWidth} × ${img.naturalHeight}`);
                   } else {
                     setInputDims({
@@ -956,38 +1014,9 @@ function App() {
                   }
                 }}
               />
-              {result && (
-                <div
-                  className="original"
-                  style={{
-                    clipPath: comparisonClipPath(
-                      viewMode,
-                      position,
-                      lensSize,
-                      lensPoint,
-                    ),
-                  }}
-                >
-                  <img
-                    crossOrigin="anonymous"
-                    style={{ transform: `scale(${zoom / 100})` }}
-                    src={convertFileSrc(input)}
-                    alt="Original image for comparison"
-                    onLoad={(e) =>
-                      setInputDims({
-                        width: e.currentTarget.naturalWidth,
-                        height: e.currentTarget.naturalHeight,
-                      })
-                    }
-                  />
-                </div>
-              )}
             </>
           ) : (
             <div className="empty">
-              <h2>
-                {batch && input ? "Batch ready" : "Make more of your images"}
-              </h2>
               <p>
                 {batch
                   ? input
@@ -1009,69 +1038,17 @@ function App() {
                   ? `  →  Target ${expectedDims.width} × ${expectedDims.height}`
                   : ""}
             </span>
-            <label>
-              Zoom{" "}
-              <input
-                type="range"
-                min="50"
-                max="400"
-                step="25"
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                aria-label="Preview zoom"
-              />{" "}
-              {zoom}%
-            </label>
+            <span className="zoom-level">Zoom {zoom}% <span>Scroll to zoom · Drag to pan</span></span>
           </div>
         )}
         {result && (
-          <>
-            <div className="view-settings">
-              <label>
-                Compare{" "}
-                <select
-                  value={viewMode}
-                  onChange={(e) =>
-                    setViewMode(e.target.value as "slider" | "lens")
-                  }
-                >
-                  <option value="slider">Slider</option>
-                  <option value="lens">Lens</option>
-                </select>
-              </label>
-              {viewMode === "lens" && (
-                <label>
-                  Lens size{" "}
-                  <input
-                    type="range"
-                    min="40"
-                    max="250"
-                    value={lensSize}
-                    onChange={(e) => setLensSize(Number(e.target.value))}
-                  />
-                </label>
-              )}
+          <div className="preview-actions">
+            <div className="preview-toggle" role="group" aria-label="Preview image">
+              <button className={showOriginal ? "selected" : ""} aria-pressed={showOriginal} onClick={() => setShowOriginal(true)}>Original</button>
+              <button className={!showOriginal ? "selected" : ""} aria-pressed={!showOriginal} onClick={() => setShowOriginal(false)}>Upscaled</button>
             </div>
-            {viewMode === "slider" ? (
-              <label className="compare">
-                Original{" "}
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={position}
-                  onChange={(e) => setPosition(Number(e.target.value))}
-                  aria-label="Compare original and upscaled images"
-                />{" "}
-                Upscaled
-              </label>
-            ) : (
-              <p className="lens-hint">
-                Move the pointer over the image to reveal the original. Use
-                Slider for keyboard comparison.
-              </p>
-            )}
-          </>
+            <button className="secondary small-btn reset-zoom" onClick={() => { setZoom(100); setPan({ x: 0, y: 0 }); }}>Reset zoom</button>
+          </div>
         )}
         {log && (
           <details className="log">
@@ -1086,6 +1063,7 @@ function App() {
           </details>
         )}
       </main>
+      </div>
     </div>
   );
 }
