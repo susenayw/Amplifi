@@ -165,12 +165,43 @@ function App() {
   );
 
   useEffect(() => {
-    resourceDir()
-      .then(async (root) => {
-        if (!savedSettings.modelsDir)
-          setModelsDir(await join(root, "resources", "models"));
-      })
-      .catch((e) => setMessage(String(e)));
+    let active = true;
+    void (async () => {
+      try {
+        const root = await resourceDir();
+        const bundledModels = await join(root, "resources", "models");
+        const candidates = [bundledModels, "src-tauri/resources/models"];
+        const savedModels = savedSettings.modelsDir;
+        if (savedModels) {
+          try {
+            const found = await invoke<string[]>("model_list", { folder: savedModels });
+            if (found.length) {
+              if (active) setModelsDir(savedModels);
+              return;
+            }
+          } catch {
+            // A stale saved custom folder should not prevent built-in models loading.
+          }
+        }
+        for (const candidate of candidates) {
+          try {
+            const found = await invoke<string[]>("model_list", { folder: candidate });
+            if (found.length) {
+              if (active) setModelsDir(candidate);
+              return;
+            }
+          } catch {
+            // Continue through the development and packaged resource locations.
+          }
+        }
+        if (active) setMessage("Built-in model files could not be found.");
+      } catch (error) {
+        if (active) setMessage(`Could not locate built-in models: ${String(error)}`);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -235,7 +266,7 @@ function App() {
             );
         })
         .catch((e) => {
-          if (active) setMessage(String(e));
+          if (active) setMessage(`Could not read models from ${modelsDir}: ${String(e)}`);
         });
     return () => {
       active = false;
@@ -298,7 +329,7 @@ function App() {
               setOutputDir(kind === "folder" ? path : await dirname(path));
             }
           } catch (error) {
-            setMessage(String(error));
+            setMessage(`Could not process dropped item: ${String(error)}`);
           }
         })();
       })
@@ -306,7 +337,9 @@ function App() {
         if (active) unlisten = fn;
         else fn();
       })
-      .catch((e) => setMessage(String(e)));
+      .catch((e) => {
+        if (active) setMessage(`Drag-and-drop setup unavailable: ${String(e)}`);
+      });
     return () => {
       active = false;
       unlisten?.();

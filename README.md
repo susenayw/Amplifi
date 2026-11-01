@@ -1,5 +1,22 @@
 # Amplifi
 
-Work-in-progress Rust/Tauri rewrite of Upscayl. This is not yet feature-complete or ready for distribution. See PARITY.md and ATTRIBUTION.md.
+Offline-first Windows image upscaler built with Tauri, React, and Rust.
 
-The code remains local; the Amplifi GitHub repository is empty until the owner explicitly requests a push.
+## Run
+
+From `amplifi-app/`:
+
+```powershell
+npm ci
+npm run tauri dev
+```
+
+Build the standalone Windows app and installer with:
+
+```powershell
+npm run tauri build
+```
+
+## License
+
+GNU AGPL-3.0. The bundled engine, runtime, and model files have additional license terms; see `amplifi-app/src-tauri/resources/licenses/`.
