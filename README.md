@@ -4,7 +4,9 @@
 
 Amplifi is a Windows desktop app for enlarging images with AI models. It runs the image processing engine locally, so images stay on your computer instead of being uploaded to a service.
 
-[Download the folder-choice installer](https://github.com/susenayw/Amplifi/releases/download/v0.0.100/Amplifi-0.0.100-Windows-Folder-Installer.zip) · [Standard setup](https://github.com/susenayw/Amplifi/releases/download/v0.0.100/com.susenayw.amplifi-win-Setup.exe) · [MSI installer](https://github.com/susenayw/Amplifi/releases/download/v0.0.100/com.susenayw.amplifi-win.msi) · [All release files](https://github.com/susenayw/Amplifi/releases/tag/v0.0.100)
+[Download Amplifi for Windows — Velopack Setup.exe](https://github.com/susenayw/Amplifi/releases/download/v0.0.100/com.susenayw.amplifi-win-Setup.exe)
+
+Want to choose the install folder? Use the [folder-choice installer ZIP](https://github.com/susenayw/Amplifi/releases/download/v0.0.100/Amplifi-0.0.100-Windows-Folder-Installer.zip). Also available: [MSI installer](https://github.com/susenayw/Amplifi/releases/download/v0.0.100/com.susenayw.amplifi-win.msi) · [all release files](https://github.com/susenayw/Amplifi/releases/tag/v0.0.100).
 
 ## Features
 
@@ -29,8 +31,8 @@ Large images and high output scales can use substantial GPU and system memory. T
 
 ## Install on Windows
 
+- **Main download:** run `com.susenayw.amplifi-win-Setup.exe` for the Velopack per-user setup.
 - **Choose a folder:** download and extract the folder-choice ZIP, then run `Install Amplifi.cmd`.
-- **Default per-user setup:** run `com.susenayw.amplifi-win-Setup.exe`.
 - **MSI:** choose per-user or per-machine install scope.
 - **Portable:** download `com.susenayw.amplifi-win-Portable.zip` from the [release page](https://github.com/susenayw/Amplifi/releases/tag/v0.0.100).
 
