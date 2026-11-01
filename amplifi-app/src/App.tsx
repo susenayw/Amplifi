@@ -15,8 +15,8 @@ import {
 import "./App.css";
 
 const modelLabels: Record<string, string> = {
-  "upscayl-standard-4x": "Upscayl Standard",
-  "upscayl-lite-4x": "Upscayl Lite",
+  "amplifi-standard-4x": "Amplifi Standard",
+  "amplifi-lite-4x": "Amplifi Lite",
   "high-fidelity-4x": "High Fidelity",
   "digital-art-4x": "Digital Art",
   "remacri-4x": "Remacri (non-commercial)",
@@ -101,7 +101,7 @@ function App() {
   );
   const [modelsDir, setModelsDir] = useState(savedSettings.modelsDir || "");
   const [models, setModels] = useState<string[]>([]);
-  const [model, setModel] = useState(savedSettings.model || "upscayl-standard-4x");
+  const [model, setModel] = useState(savedSettings.model || "amplifi-standard-4x");
   const [scale, setScale] = useState(savedSettings.scale || 4);
   const [format, setFormat] = useState(savedSettings.format || "png");
   const [gpu, setGpu] = useState(savedSettings.gpu || "");
@@ -414,7 +414,7 @@ function App() {
   }
 
   async function resetSettings() {
-    setModel("upscayl-standard-4x");
+    setModel("amplifi-standard-4x");
     setScale(4);
     setFormat("png");
     setGpu("");

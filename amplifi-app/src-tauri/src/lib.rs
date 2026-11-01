@@ -39,7 +39,7 @@ async fn upscale(
         .map_err(|e| e.to_string())?
         .join("resources")
         .join("bin")
-        .join("upscayl-bin.exe");
+        .join("amplifi-engine.exe");
     let runner = state.0.clone();
     let saved = tauri::async_runtime::spawn_blocking(move || {
         runner.run_job(&executable, &job, move |line| {

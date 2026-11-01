@@ -1,4 +1,4 @@
-//! Construction of arguments and safe execution for the Upscayl NCNN executable.
+//! Construction of arguments and safe execution for Amplifi's NCNN image engine.
 //! The engine is invoked without a shell so filenames are passed as individual arguments.
 use std::{
     io::{Read, Write},
@@ -498,7 +498,7 @@ pub fn recommend_model_from_rgba(
     };
 
     if is_drawing {
-        let recommended_model = pick_model(&["digital-art-4x", "anime", "art", "upscayl-lite-4x"]);
+        let recommended_model = pick_model(&["digital-art-4x", "anime", "art", "amplifi-lite-4x"]);
         let reason = if transparent_ratio >= 0.02 {
             "Detected alpha transparency and graphic regions typical of illustrations or sprites."
         } else {
@@ -511,7 +511,7 @@ pub fn recommend_model_from_rgba(
         })
     } else {
         let recommended_model =
-            pick_model(&["upscayl-standard-4x", "high-fidelity-4x", "standard"]);
+            pick_model(&["amplifi-standard-4x", "high-fidelity-4x", "standard"]);
         Ok(ModelRecommendation {
             category: "photo".into(),
             recommended_model,
@@ -809,7 +809,7 @@ mod tests {
         let models = vec![
             "digital-art-4x".to_string(),
             "high-fidelity-4x".to_string(),
-            "upscayl-standard-4x".to_string(),
+            "amplifi-standard-4x".to_string(),
         ];
         // Synthetic drawing: flat blocks of color with sharp border
         let mut drawing = Vec::with_capacity(16 * 16 * 4);
@@ -838,6 +838,6 @@ mod tests {
         }
         let rec_photo = recommend_model_from_rgba(16, 16, &photo, &models).unwrap();
         assert_eq!(rec_photo.category, "photo");
-        assert_eq!(rec_photo.recommended_model, "upscayl-standard-4x");
+        assert_eq!(rec_photo.recommended_model, "amplifi-standard-4x");
     }
 }

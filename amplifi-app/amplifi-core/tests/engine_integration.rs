@@ -18,7 +18,7 @@ fn engine_writes_to_open_temporary_file() {
         input: PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/sample.png"),
         output: output.path().into(),
         models_dir: root.join("models"),
-        model: "upscayl-lite-4x".into(),
+        model: "amplifi-lite-4x".into(),
         scale: 4,
         format: "png".into(),
         gpu_id: None,
@@ -31,7 +31,7 @@ fn engine_writes_to_open_temporary_file() {
         copy_metadata: false,
     };
     job.validate().unwrap();
-    let result = Command::new(root.join("bin/upscayl-bin.exe"))
+    let result = Command::new(root.join("bin/amplifi-engine.exe"))
         .args(job.arguments())
         .output()
         .unwrap();
@@ -71,7 +71,7 @@ fn two_passes_produce_a_sixteen_fold_image() {
         input: PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/sample.png"),
         output: destination.clone(),
         models_dir: root.join("models"),
-        model: "upscayl-lite-4x".into(),
+        model: "amplifi-lite-4x".into(),
         scale: 4,
         format: "png".into(),
         gpu_id: None,
@@ -84,7 +84,7 @@ fn two_passes_produce_a_sixteen_fold_image() {
         copy_metadata: false,
     };
     let saved = runner
-        .run_job(&root.join("bin/upscayl-bin.exe"), &job, move |line| {
+        .run_job(&root.join("bin/amplifi-engine.exe"), &job, move |line| {
             logs_clone.lock().unwrap().push(line);
         })
         .unwrap();
@@ -220,7 +220,7 @@ fn clipboard_staging_and_overwrite_semantics_work_end_to_end() {
         input: pasted.to_path_buf(),
         output: output.clone(),
         models_dir: root.join("models"),
-        model: "upscayl-lite-4x".into(),
+        model: "amplifi-lite-4x".into(),
         scale: 4,
         format: "png".into(),
         gpu_id: None,
@@ -233,13 +233,13 @@ fn clipboard_staging_and_overwrite_semantics_work_end_to_end() {
         copy_metadata: false,
     };
     runner
-        .run_job(&root.join("bin/upscayl-bin.exe"), &job, |_| {})
+        .run_job(&root.join("bin/amplifi-engine.exe"), &job, |_| {})
         .unwrap();
     assert_eq!(amplifi_core::image_dimensions(&output).unwrap(), (128, 128));
 
     // Without overwrite enabled, existing output is protected.
     let err = runner
-        .run_job(&root.join("bin/upscayl-bin.exe"), &job, |_| {})
+        .run_job(&root.join("bin/amplifi-engine.exe"), &job, |_| {})
         .unwrap_err();
     assert!(err.contains("already exists"), "{err}");
 
@@ -247,7 +247,7 @@ fn clipboard_staging_and_overwrite_semantics_work_end_to_end() {
     job.overwrite = true;
     job.scale = 2;
     runner
-        .run_job(&root.join("bin/upscayl-bin.exe"), &job, |_| {})
+        .run_job(&root.join("bin/amplifi-engine.exe"), &job, |_| {})
         .unwrap();
     assert_eq!(amplifi_core::image_dimensions(&output).unwrap(), (64, 64));
 }
@@ -261,12 +261,12 @@ fn custom_model_scale_width_formats_tile_tta_and_compression_end_to_end() {
     let custom_models = dir.path().join("custom_models");
     std::fs::create_dir_all(&custom_models).unwrap();
     std::fs::copy(
-        root.join("models/upscayl-lite-4x.param"),
+        root.join("models/amplifi-lite-4x.param"),
         custom_models.join("custom-lite-4x.param"),
     )
     .unwrap();
     std::fs::copy(
-        root.join("models/upscayl-lite-4x.bin"),
+        root.join("models/amplifi-lite-4x.bin"),
         custom_models.join("custom-lite-4x.bin"),
     )
     .unwrap();
@@ -292,7 +292,7 @@ fn custom_model_scale_width_formats_tile_tta_and_compression_end_to_end() {
         copy_metadata: false,
     };
     runner
-        .run_job(&root.join("bin/upscayl-bin.exe"), &job_jpg, |_| {})
+        .run_job(&root.join("bin/amplifi-engine.exe"), &job_jpg, |_| {})
         .unwrap();
     assert_eq!(amplifi_core::image_dimensions(&jpg_out).unwrap(), (96, 96));
 
@@ -314,7 +314,7 @@ fn custom_model_scale_width_formats_tile_tta_and_compression_end_to_end() {
         copy_metadata: false,
     };
     runner
-        .run_job(&root.join("bin/upscayl-bin.exe"), &job_webp, |_| {})
+        .run_job(&root.join("bin/amplifi-engine.exe"), &job_webp, |_| {})
         .unwrap();
     assert_eq!(amplifi_core::image_dimensions(&webp_out).unwrap(), (80, 80));
 }
@@ -334,7 +334,7 @@ fn invalid_gpu_malformed_image_and_missing_output_dir_report_clear_errors() {
         input: fake_png,
         output: dir.path().join("out1.png"),
         models_dir: root.join("models"),
-        model: "upscayl-lite-4x".into(),
+        model: "amplifi-lite-4x".into(),
         scale: 4,
         format: "png".into(),
         gpu_id: None,
@@ -347,7 +347,7 @@ fn invalid_gpu_malformed_image_and_missing_output_dir_report_clear_errors() {
         copy_metadata: false,
     };
     let err = runner
-        .run_job(&root.join("bin/upscayl-bin.exe"), &job, |_| {})
+        .run_job(&root.join("bin/amplifi-engine.exe"), &job, |_| {})
         .unwrap_err();
     assert!(err.contains("not a valid PNG, JPEG, or WebP"), "{err}");
     assert!(!job.output.exists());
@@ -358,7 +358,7 @@ fn invalid_gpu_malformed_image_and_missing_output_dir_report_clear_errors() {
     job.input = corrupt_png;
     job.output = dir.path().join("out2.png");
     let err = runner
-        .run_job(&root.join("bin/upscayl-bin.exe"), &job, |_| {})
+        .run_job(&root.join("bin/amplifi-engine.exe"), &job, |_| {})
         .unwrap_err();
     assert!(
         err.contains("Couldn't read the image") || err.contains("did not produce a valid image"),
@@ -371,7 +371,7 @@ fn invalid_gpu_malformed_image_and_missing_output_dir_report_clear_errors() {
     job.output = dir.path().join("out3.png");
     job.gpu_id = Some("99".into());
     let err = runner
-        .run_job(&root.join("bin/upscayl-bin.exe"), &job, |_| {})
+        .run_job(&root.join("bin/amplifi-engine.exe"), &job, |_| {})
         .unwrap_err();
     assert!(err.contains("Invalid GPU"), "{err}");
     assert!(!job.output.exists());
@@ -380,7 +380,7 @@ fn invalid_gpu_malformed_image_and_missing_output_dir_report_clear_errors() {
     job.gpu_id = None;
     job.output = dir.path().join("missing_folder/out4.png");
     let err = runner
-        .run_job(&root.join("bin/upscayl-bin.exe"), &job, |_| {})
+        .run_job(&root.join("bin/amplifi-engine.exe"), &job, |_| {})
         .unwrap_err();
     assert!(err.contains("Output folder does not exist"), "{err}");
 }
@@ -398,7 +398,7 @@ fn cancellation_stops_active_engine_job_and_cleans_up_staging() {
         input: fixtures.join("sample.png"),
         output: output.clone(),
         models_dir: root.join("models"),
-        model: "upscayl-standard-4x".into(),
+        model: "amplifi-standard-4x".into(),
         scale: 4,
         format: "png".into(),
         gpu_id: None,
@@ -411,7 +411,7 @@ fn cancellation_stops_active_engine_job_and_cleans_up_staging() {
         copy_metadata: false,
     };
     let err = runner
-        .run_job(&root.join("bin/upscayl-bin.exe"), &job, move |line| {
+        .run_job(&root.join("bin/amplifi-engine.exe"), &job, move |line| {
             if line != "Pass 1 of 2" {
                 let _ = runner_for_log.cancel();
             }
