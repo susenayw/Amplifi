@@ -4,6 +4,8 @@
 
 Amplifi is a Windows desktop app for enlarging images with AI models. It runs the image processing engine locally, so images stay on your computer instead of being uploaded to a service.
 
+![Amplifi desktop app](amplifi-app/screenshots/Amplifi.png)
+
 [Download Amplifi for Windows — Velopack Setup.exe](https://github.com/susenayw/Amplifi/releases/download/v0.0.100/com.susenayw.amplifi-win-Setup.exe)
 
 Want to choose the install folder? Use the [folder-choice installer ZIP](https://github.com/susenayw/Amplifi/releases/download/v0.0.100/Amplifi-0.0.100-Windows-Folder-Installer.zip). Also available: [MSI installer](https://github.com/susenayw/Amplifi/releases/download/v0.0.100/com.susenayw.amplifi-win.msi) · [all release files](https://github.com/susenayw/Amplifi/releases/tag/v0.0.100).
