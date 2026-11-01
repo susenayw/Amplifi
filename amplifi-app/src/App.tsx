@@ -21,15 +21,7 @@ const modelLabels: Record<string, string> = {
   "upscayl-lite-4x": "Amplify",
   "high-fidelity-4x": "High Fidelity",
   "digital-art-4x": "Digital Art",
-  "remacri-4x": "Remacri (non-commercial)",
-  "ultramix-balanced-4x": "Ultramix (non-commercial)",
-  "ultrasharp-4x": "Ultrasharp (non-commercial)",
 };
-const nonCommercialModels = new Set([
-  "remacri-4x",
-  "ultramix-balanced-4x",
-  "ultrasharp-4x",
-]);
 
 type Stats = {
   total: number;
@@ -730,12 +722,6 @@ function App() {
                     )}
                 </div>
               )}
-              {nonCommercialModels.has(model) && (
-                <p className="path">
-                  This model is for non-commercial use. See attribution and
-                  license information before use.
-                </p>
-              )}
               <label>
                 Scale
                 <select
@@ -916,6 +902,24 @@ function App() {
               >
                 Reset settings
               </button>
+              <details className="license-notice">
+                <summary>License and legal notices</summary>
+                <p className="path">
+                  Copyright (C) 2026 Amplifi contributors. Amplifi includes
+                  portions of Upscayl and third-party software and models. It
+                  is provided without warranty. You may share and modify it
+                  under the GNU Affero General Public License version 3.
+                </p>
+                <p className="path">
+                  View the <a href="/licenses/AGPL-3.0.txt">AGPL-3.0 license</a>
+                  {" "}or get the{" "}
+                  <a href="https://github.com/susenayw/Amplifi">complete source code</a>.
+                </p>
+                <p className="path">
+                  Third-party notices and model credits are in the{" "}
+                  <a href="/licenses/ATTRIBUTION.md">bundled notices</a>.
+                </p>
+              </details>
             </details>
           </div>
           <div className="controls">

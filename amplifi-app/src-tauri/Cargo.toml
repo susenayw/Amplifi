@@ -1,6 +1,6 @@
 [package]
 name = "amplifi-app"
-version = "0.1.0"
+version = "0.0.100"
 description = "Amplifi image upscaler"
 authors = ["Amplifi contributors"]
 edition = "2024"

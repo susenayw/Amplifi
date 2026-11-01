@@ -90,6 +90,9 @@ select { cursor: pointer; }
 summary { color: var(--text); cursor: pointer; font-size: 12px; }
 details { padding-top: 5px; }
 details label:first-of-type { margin-top: 17px; }
+.license-notice { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+.license-notice p { margin: 9px 0; }
+.license-notice a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
 .controls { flex: none; padding: 12px 23px 18px; border-top: 1px solid var(--line); background: var(--panel); }
 .action { width: 100%; margin: 0; padding: 13px 14px; text-transform: uppercase; letter-spacing: .04em; }
 progress { width: 100%; height: 7px; margin-top: 13px; accent-color: var(--accent); }
